@@ -1,14 +1,18 @@
 FROM golang:1.15-alpine as builder
 
-ARG VERSION=v0.7.4
-
 RUN apk add --no-cache git make bash
 
-RUN cd && git clone https://github.com/kubernetes-sigs/external-dns.git \
+COPY version.txt /version.txt
+
+RUN VERSION=$(cat /version.txt) && \
+    cd && git clone https://github.com/kubernetes-sigs/external-dns.git \
     && cd external-dns \
     && if [ "$VERSION" != "main" ] ; then git checkout tags/${VERSION} -b ${VERSION} ; fi
 
+
 WORKDIR /root/external-dns
+
+RUN go mod download
 
 RUN CGO_ENABLED=0 go build -o build/external-dns -v -ldflags "-X sigs.k8s.io/external-dns/pkg/apis/externaldns.Version=$(git describe --tags --always --dirty) -w -s" .
 
