@@ -1,0 +1,67 @@
+name: docker
+
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  image:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Prepare 
+      if: success()
+      id: prepare
+      run: |
+        echo ::set-output name=docker_platforms::linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/386,linux/ppc64le
+        echo ::set-output name=docker_image::docker.io/${{ secrets.DOCKER_USERNAME }}/external-dns
+        echo ::set-output name=version::${GITHUB_REF#refs/*/}
+        echo ::set-output name=hash::${GITHUB_SHA}
+        echo ::set-output name=pre-release::false
+      
+    - name: Set up Docker Buildx      
+      uses: crazy-max/ghaction-docker-buildx@v2      
+          
+    - name: Log into registry
+      if: success()
+      run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+    - name: Run Buildx (master)
+      if: success() && contains(steps.prepare.outputs.version, 'master')
+      run: |
+        docker buildx build \
+          --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
+          --platform ${{ steps.prepare.outputs.docker_platforms }} \
+          --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}" \
+          --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.hash }}" \
+          --tag "${{ steps.prepare.outputs.docker_image }}:latest" \
+          --file Dockerfile .
+
+    - name: Run Buildx (non-master)
+      if: success() && !contains(steps.prepare.outputs.version, 'master')
+      run: |
+        VERSION=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/^v//')
+        docker buildx build \
+          --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
+          --platform ${{ steps.prepare.outputs.docker_platforms }} \
+          --tag "${{ steps.prepare.outputs.docker_image }}:$VERSION" \
+          --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.hash }}" \
+          --tag "${{ steps.prepare.outputs.docker_image }}:latest" \
+          --file Dockerfile .
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: ${{ steps.prepare.outputs.prerelease }}
