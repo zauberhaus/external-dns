@@ -40,7 +40,7 @@ jobs:
     - name: Run Buildx
       run: |
         V1=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/^v//')
-        V2=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/-.*$//')
+        V2=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/-.*$//' | sed -e 's/^v//')
         docker buildx build \
           --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
           --platform ${{ steps.prepare.outputs.docker_platforms }} \
