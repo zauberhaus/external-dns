@@ -6,25 +6,30 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.REPO_SCOPED_TOKEN }}
+      - name: Check out code
+        uses: actions/checkout@v2
+
       - name: Fetch release version
         id: fetch
         run: |
             VERSION=$(curl -sL https://api.github.com/repos/kubernetes-sigs/external-dns/releases/latest | jq -r ".tag_name") && \
             echo ::set-output name=version::${VERSION} && \
-            echo $VERSION > version.txt
+            echo -n $VERSION > version.txt
+
       - name: Check for modified files
-        id: git-check
-        run: echo ::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")
-      - name: Commit latest release version
-        if: steps.git-check.outputs.modified == 'true'
+        id: check
         run: |
+            RESULT=$(git status --porcelain | grep "M version.txt" > /dev/null && echo -n "true" || echo -n "false")
+            echo ::set-output name=modified::${RESULT}
+
+      - name: Commit latest release version
+        if: steps.check.outputs.modified == 'true'
+        run: |
+          echo "New version: ${{ steps.fetch.outputs.version }}"  
           #git config --global user.name 'Your Name'
           #git config --global user.email 'your-email@users.noreply.github.com'
           git add version.txt
-          git commit -am "Version ${{ steps.fetch.outputs.version }}"
+          git commit -am "New external-dns version ${{ steps.fetch.outputs.version }}"
           git tag "${{ steps.fetch.outputs.version }}"
           git push origin "${{ steps.fetch.outputs.version }}"
 
