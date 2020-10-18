@@ -26,8 +26,8 @@ jobs:
         if: steps.check.outputs.modified == 'true'
         run: |
           echo "New version: ${{ steps.fetch.outputs.version }}"  
-          #git config --global user.name 'Your Name'
-          #git config --global user.email 'your-email@users.noreply.github.com'
+          git config --global user.name 'Github action'
+          git config --global user.email 'zauberhaus@users.noreply.github.com'
           git add version.txt
           git commit -am "New external-dns version ${{ steps.fetch.outputs.version }}"
           git tag "${{ steps.fetch.outputs.version }}"
