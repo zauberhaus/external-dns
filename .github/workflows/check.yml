@@ -31,7 +31,17 @@ jobs:
           git config --global user.email 'zauberhaus@users.noreply.github.com'
           git add version.txt
           git commit -am "New external-dns version ${{ steps.fetch.outputs.version }}"
-          git push origin HEAD
-          git tag "${{ steps.fetch.outputs.version }}"
-          git push origin "${{ steps.fetch.outputs.version }}"
+          
+      - name: Push changes
+        if: steps.check.outputs.modified == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}          
+   
+      - name: Create a new tag
+        if: steps.check.outputs.modified == 'true'
+        run: |
+            git tag "${{ steps.fetch.outputs.version }}"
+            git push origin "${{ steps.fetch.outputs.version }}"
 
