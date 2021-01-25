@@ -7,8 +7,9 @@ on:
   repository_dispatch:
     types: [new-version]  
   push:    
-    tags:
-    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+    paths:
+      - '.github/workflows/build.yml'
+      - 'version.txt'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -26,10 +27,11 @@ jobs:
       if: success()
       id: prepare
       run: |
+        VERSION=$(cat version.txt)
+        echo ::set-output name=version::${VERSION}
         echo ::set-output name=docker_platforms::linux/amd64,linux/386,linux/arm/v7,linux/arm64
         #echo ::set-output name=docker_platforms::linux/amd64
         echo ::set-output name=docker_image::docker.io/${{ secrets.DOCKER_USERNAME }}/external-dns
-        echo ::set-output name=version::${GITHUB_REF#refs/*/}
         echo ::set-output name=hash::${GITHUB_SHA}
         echo ::set-output name=pre-release::false
       
