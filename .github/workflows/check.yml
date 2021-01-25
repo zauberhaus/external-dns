@@ -11,40 +11,23 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Fetch release version
-        id: fetch
         run: |
-            VERSION=$(curl -sL https://api.github.com/repos/kubernetes-sigs/external-dns/releases/latest | jq -r ".tag_name") && \
-            echo ::set-output name=version::${VERSION} && \
-            echo -n $VERSION > version.txt
+          curl -sL https://api.github.com/repos/kubernetes-sigs/external-dns/tags | \
+          jq -r ".[0] .name" > version.txt
 
       - name: Check for modified files
-        id: check
-        run: |
-            RESULT=$(git status --porcelain | grep "M version.txt" > /dev/null && echo -n "true" || echo -n "false")
-            echo ::set-output name=modified::${RESULT}
+        id: git-check
+        run: echo ::set-output name=modified::$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)
 
       - name: Commit latest release version
-        if: steps.check.outputs.modified == 'true'
+        if: steps.git-check.outputs.modified == 'true'
         run: |
-          echo "New version: ${{ steps.fetch.outputs.version }}"  
           git config --global user.name 'Github action'
           git config --global user.email 'zauberhaus@users.noreply.github.com'
-          git add version.txt
-          git commit -am "New external-dns version ${{ steps.fetch.outputs.version }}"
-          git tag "${{ steps.fetch.outputs.version }}"
-          
+          git commit -sam "Adding new release version" || exit 0
+
       - name: Push changes
-        if: steps.check.outputs.modified == 'true'
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-          tags: true        
-
-      - name: Repository Dispatch
-        if: steps.check.outputs.modified == 'true'
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          event-type: new-version
-
+          
