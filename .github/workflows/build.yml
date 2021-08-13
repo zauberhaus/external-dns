@@ -23,14 +23,16 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ^1.16.0
+
     - name: Prepare 
       if: success()
       id: prepare
       run: |
-        VERSION=$(cat version.txt)
-        echo ::set-output name=version::${VERSION}
-        echo ::set-output name=docker_platforms::linux/amd64,linux/386,linux/arm/v7,linux/arm64
-        #echo ::set-output name=docker_platforms::linux/amd64
+        echo ::set-output name=version::$(cat version.txt)
+        echo ::set-output name=docker_platforms::linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
         echo ::set-output name=docker_image::docker.io/${{ secrets.DOCKER_USERNAME }}/external-dns
         echo ::set-output name=hash::${GITHUB_SHA}
         echo ::set-output name=pre-release::false
@@ -49,15 +51,13 @@ jobs:
 
     - name: Run Buildx
       run: |
-        V1=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/^v//' | sed -e 's/-.*$//')
-        V2=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/-.*$//')
+        TAG=$(echo "${{ steps.prepare.outputs.version }}" | sed -e 's/^v//' | sed -e 's/-.*$//')
         docker buildx build \
           --output type=image,name=${{ steps.prepare.outputs.docker_image }},push=true \
           --platform ${{ steps.prepare.outputs.docker_platforms }} \
-          --tag "${{ steps.prepare.outputs.docker_image }}:$V1" \
+          --tag "${{ steps.prepare.outputs.docker_image }}:$TAG" \
           --tag "${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.hash }}" \
           --tag "${{ steps.prepare.outputs.docker_image }}:latest" \
-          --build-arg VERSION="$V2" \
           --file Dockerfile .
 
     - name: Create Release

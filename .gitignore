@@ -1,2 +1,4 @@
 .actrc
 *.env
+src
+build

@@ -1,23 +1,15 @@
-FROM golang:1.15-alpine as builder
+FROM alpine as builder
 
-RUN apk add --no-cache git make bash
+RUN apk update && apk add binutils ca-certificates && rm -rf /var/cache/apk/*
 
-COPY version.txt /version.txt
+COPY ./build /build
+COPY detect.sh /
 
-RUN VERSION=$(cat /version.txt) && \
-    cd && git clone https://github.com/kubernetes-sigs/external-dns.git \
-    && cd external-dns \
-    && if [ "$VERSION" != "main" ] ; then git checkout tags/${VERSION} -b ${VERSION} ; fi
+RUN /detect.sh
 
+FROM scratch 
 
-WORKDIR /root/external-dns
-
-RUN go mod download
-
-RUN CGO_ENABLED=0 go build -o build/external-dns -v -ldflags "-X sigs.k8s.io/external-dns/pkg/apis/externaldns.Version=$(git describe --tags --always --dirty) -w -s" .
-
-FROM alpine
-COPY --from=builder /root/external-dns/build/external-dns /bin/external-dns   
+COPY --from=builder /external-dns /bin/external-dns
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 # Run as UID for nobody since k8s pod securityContext runAsNonRoot can't resolve the user ID:
