@@ -37,6 +37,10 @@ jobs:
         echo ::set-output name=hash::${GITHUB_SHA}
         echo ::set-output name=pre-release::false
       
+    - name: Run build script
+      run: |
+       ./build.sh   
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
       with:
